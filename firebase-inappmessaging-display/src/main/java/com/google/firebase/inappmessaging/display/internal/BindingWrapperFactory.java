@@ -15,7 +15,10 @@
 package com.google.firebase.inappmessaging.display.internal;
 
 import android.app.Application;
+
+import com.google.firebase.inappmessaging.display.InAppMessageCustomViewProvider;
 import com.google.firebase.inappmessaging.display.internal.bindingwrappers.BindingWrapper;
+import com.google.firebase.inappmessaging.display.internal.bindingwrappers.CustomBindingWrapper;
 import com.google.firebase.inappmessaging.display.internal.injection.components.DaggerInAppMessageComponent;
 import com.google.firebase.inappmessaging.display.internal.injection.components.InAppMessageComponent;
 import com.google.firebase.inappmessaging.display.internal.injection.modules.InflaterModule;
@@ -32,6 +35,18 @@ public class BindingWrapperFactory {
   @Inject
   BindingWrapperFactory(Application application) {
     this.application = application;
+  }
+
+  public BindingWrapper createCustomBindingWrapper(
+          InAppMessageLayoutConfig config, InAppMessage inAppMessage,
+          InAppMessageCustomViewProvider provider) {
+    InAppMessageComponent inAppMessageComponent =
+            DaggerInAppMessageComponent.builder()
+                    .inflaterModule(new InflaterModule(inAppMessage, config, application))
+                    .build();
+    CustomBindingWrapper customBindingWrapper = inAppMessageComponent.customBindingWrapper();
+    customBindingWrapper.setInAppMessageCustomViewProvider(provider);
+    return customBindingWrapper;
   }
 
   public BindingWrapper createImageBindingWrapper(

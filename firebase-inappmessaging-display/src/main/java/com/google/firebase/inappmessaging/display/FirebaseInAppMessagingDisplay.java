@@ -44,6 +44,7 @@ import com.google.firebase.inappmessaging.display.internal.InAppMessageLayoutCon
 import com.google.firebase.inappmessaging.display.internal.Logging;
 import com.google.firebase.inappmessaging.display.internal.RenewableTimer;
 import com.google.firebase.inappmessaging.display.internal.bindingwrappers.BindingWrapper;
+import com.google.firebase.inappmessaging.display.internal.bindingwrappers.CustomBindingWrapper;
 import com.google.firebase.inappmessaging.display.internal.injection.modules.InflaterConfigModule;
 import com.google.firebase.inappmessaging.display.internal.injection.scopes.FirebaseAppScope;
 import com.google.firebase.inappmessaging.model.Action;
@@ -98,6 +99,7 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
   private FirebaseInAppMessagingDisplayCallbacks callbacks;
 
   @VisibleForTesting @Nullable String currentlyBoundActivityName;
+  private InAppMessageCustomViewProvider inAppMessageCustomViewProvider;
 
   @Inject
   FirebaseInAppMessagingDisplay(
@@ -176,6 +178,10 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
   public void onActivityResumed(Activity activity) {
     super.onActivityResumed(activity);
     bindFiamToActivity(activity);
+  }
+
+  public void setInAppMessageCustomViewProvider(InAppMessageCustomViewProvider provider){
+    inAppMessageCustomViewProvider = provider;
   }
 
   /**
@@ -257,23 +263,28 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
 
     final BindingWrapper bindingWrapper;
 
-    switch (inAppMessage.getMessageType()) {
-      case BANNER:
-        bindingWrapper = bindingWrapperFactory.createBannerBindingWrapper(config, inAppMessage);
-        break;
-      case MODAL:
-        bindingWrapper = bindingWrapperFactory.createModalBindingWrapper(config, inAppMessage);
-        break;
-      case IMAGE_ONLY:
-        bindingWrapper = bindingWrapperFactory.createImageBindingWrapper(config, inAppMessage);
-        break;
-      case CARD:
-        bindingWrapper = bindingWrapperFactory.createCardBindingWrapper(config, inAppMessage);
-        break;
-      default:
-        Logging.loge("No bindings found for this message type");
-        // so we should break out completely and not attempt to show anything
-        return;
+    if(inAppMessageCustomViewProvider!=null && inAppMessageCustomViewProvider.canProvideViewFor(activity,inAppMessage)){
+      bindingWrapper =
+              bindingWrapperFactory.createCustomBindingWrapper(config,inAppMessage,inAppMessageCustomViewProvider);
+    }else {
+      switch (inAppMessage.getMessageType()) {
+        case BANNER:
+          bindingWrapper = bindingWrapperFactory.createBannerBindingWrapper(config, inAppMessage);
+          break;
+        case MODAL:
+          bindingWrapper = bindingWrapperFactory.createModalBindingWrapper(config, inAppMessage);
+          break;
+        case IMAGE_ONLY:
+          bindingWrapper = bindingWrapperFactory.createImageBindingWrapper(config, inAppMessage);
+          break;
+        case CARD:
+          bindingWrapper = bindingWrapperFactory.createCardBindingWrapper(config, inAppMessage);
+          break;
+        default:
+          Logging.loge("No bindings found for this message type");
+          // so we should break out completely and not attempt to show anything
+          return;
+      }
     }
 
     // The WindowManager LayoutParams.TYPE_APPLICATION_PANEL requires tokens from the activity
@@ -284,7 +295,12 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
             new Runnable() {
               @Override
               public void run() {
-                inflateBinding(activity, bindingWrapper);
+                if(bindingWrapper instanceof CustomBindingWrapper){
+                  bindingWrapper.inflate(null,null);
+                 setUpAndShowFiam(activity,bindingWrapper);
+                }else {
+                  inflateBinding(activity, bindingWrapper);
+                }
               }
             });
   }
@@ -349,72 +365,7 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
         new FiamImageLoader.Callback() {
           @Override
           public void onSuccess() {
-            // Setup dismiss on touch outside
-            if (!bindingWrapper.getConfig().backgroundEnabled()) {
-              bindingWrapper
-                  .getRootView()
-                  .setOnTouchListener(
-                      new View.OnTouchListener() {
-                        @Override
-                        public boolean onTouch(View v, MotionEvent event) {
-                          if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
-                            if (callbacks != null) {
-                              callbacks.messageDismissed(
-                                  InAppMessagingDismissType.UNKNOWN_DISMISS_TYPE);
-                            }
-                            dismissFiam(activity);
-                            return true;
-                          }
-                          return false;
-                        }
-                      });
-            }
-
-            // Setup impression timer
-            impressionTimer.start(
-                new RenewableTimer.Callback() {
-                  @Override
-                  public void onFinish() {
-                    if (inAppMessage != null && callbacks != null) {
-                      Logging.logi(
-                          "Impression timer onFinish for: "
-                              + inAppMessage.getCampaignMetadata().getCampaignId());
-
-                      callbacks.impressionDetected();
-                    }
-                  }
-                },
-                IMPRESSION_THRESHOLD_MILLIS,
-                INTERVAL_MILLIS);
-
-            // Setup auto dismiss timer
-            if (bindingWrapper.getConfig().autoDismiss()) {
-              autoDismissTimer.start(
-                  new RenewableTimer.Callback() {
-                    @Override
-                    public void onFinish() {
-                      if (inAppMessage != null && callbacks != null) {
-                        callbacks.messageDismissed(InAppMessagingDismissType.AUTO);
-                      }
-
-                      dismissFiam(activity);
-                    }
-                  },
-                  DISMISS_THRESHOLD_MILLIS,
-                  INTERVAL_MILLIS);
-            }
-
-            activity.runOnUiThread(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    windowManager.show(bindingWrapper, activity);
-                    if (bindingWrapper.getConfig().animate()) {
-                      // Animate entry
-                      animator.slideIntoView(application, bindingWrapper.getRootView(), TOP);
-                    }
-                  }
-                });
+            setUpAndShowFiam(activity,bindingWrapper);
           }
 
           @Override
@@ -431,6 +382,75 @@ public class FirebaseInAppMessagingDisplay extends FirebaseInAppMessagingDisplay
             callbacks = null;
           }
         });
+  }
+
+  private void setUpAndShowFiam(Activity activity, BindingWrapper bindingWrapper) {
+    // Setup dismiss on touch outside
+    if (!bindingWrapper.getConfig().backgroundEnabled()) {
+      bindingWrapper
+              .getRootView()
+              .setOnTouchListener(
+                      new View.OnTouchListener() {
+                        @Override
+                        public boolean onTouch(View v, MotionEvent event) {
+                          if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
+                            if (callbacks != null) {
+                              callbacks.messageDismissed(
+                                      InAppMessagingDismissType.UNKNOWN_DISMISS_TYPE);
+                            }
+                            dismissFiam(activity);
+                            return true;
+                          }
+                          return false;
+                        }
+                      });
+    }
+
+    // Setup impression timer
+    impressionTimer.start(
+            new RenewableTimer.Callback() {
+              @Override
+              public void onFinish() {
+                if (inAppMessage != null && callbacks != null) {
+                  Logging.logi(
+                          "Impression timer onFinish for: "
+                                  + inAppMessage.getCampaignMetadata().getCampaignId());
+
+                  callbacks.impressionDetected();
+                }
+              }
+            },
+            IMPRESSION_THRESHOLD_MILLIS,
+            INTERVAL_MILLIS);
+
+    // Setup auto dismiss timer
+    if (bindingWrapper.getConfig().autoDismiss()) {
+      autoDismissTimer.start(
+              new RenewableTimer.Callback() {
+                @Override
+                public void onFinish() {
+                  if (inAppMessage != null && callbacks != null) {
+                    callbacks.messageDismissed(InAppMessagingDismissType.AUTO);
+                  }
+
+                  dismissFiam(activity);
+                }
+              },
+              DISMISS_THRESHOLD_MILLIS,
+              INTERVAL_MILLIS);
+    }
+
+    activity.runOnUiThread(
+            new Runnable() {
+              @Override
+              public void run() {
+                windowManager.show(bindingWrapper, activity);
+                if (bindingWrapper.getConfig().animate()) {
+                  // Animate entry
+                  animator.slideIntoView(application, bindingWrapper.getRootView(), TOP);
+                }
+              }
+            });
   }
 
   private List<Action> extractActions(InAppMessage message) {
