@@ -100,11 +100,6 @@ class MemoryIndexManager implements IndexManager {
   }
 
   @Override
-  public boolean canServeFromIndex(Target target) {
-    return false;
-  }
-
-  @Override
   public IndexOffset getMinOffset(Target target) {
     return IndexOffset.NONE;
   }

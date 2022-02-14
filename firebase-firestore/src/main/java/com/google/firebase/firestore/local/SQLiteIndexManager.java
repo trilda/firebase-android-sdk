@@ -279,18 +279,6 @@ final class SQLiteIndexManager implements IndexManager {
     return allIndices;
   }
 
-  @Override
-  public boolean canServeFromIndex(Target target) {
-    for (Target subTarget : getSubTargets(target)) {
-      // If any of the sub-queries cannot be served from the index, the target as a whole cannot be
-      // served from the index.
-      if (getFieldIndex(subTarget) == null) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   private IndexOffset getMinOffset(Collection<FieldIndex> fieldIndexes) {
     hardAssert(
         !fieldIndexes.isEmpty(),
@@ -319,9 +307,6 @@ final class SQLiteIndexManager implements IndexManager {
 
   @Override
   public IndexOffset getMinOffset(Target target) {
-    hardAssert(
-        canServeFromIndex(target),
-        "Cannot find least recent index offset if target cannot be served from index.");
     List<FieldIndex> fieldIndexes = new ArrayList<>();
     for (Target subTarget : getSubTargets(target)) {
       fieldIndexes.add(getFieldIndex(subTarget));
@@ -458,6 +443,10 @@ final class SQLiteIndexManager implements IndexManager {
 
     for (Target subTarget : getSubTargets(target)) {
       FieldIndex fieldIndex = getFieldIndex(subTarget);
+      if (fieldIndex == null) {
+        return null;
+      }
+
       @Nullable List<Value> arrayValues = subTarget.getArrayValues(fieldIndex);
       @Nullable List<Value> notInValues = subTarget.getNotInValues(fieldIndex);
       @Nullable Bound lowerBound = subTarget.getLowerBound(fieldIndex);
