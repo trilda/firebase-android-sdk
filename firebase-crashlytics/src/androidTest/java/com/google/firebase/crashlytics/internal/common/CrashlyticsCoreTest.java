@@ -46,6 +46,7 @@ import com.google.firebase.inject.Deferred;
 import com.google.firebase.installations.FirebaseInstallationsApi;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import org.mockito.Mockito;
 
@@ -120,22 +121,6 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
     assertNull(metadata.getCustomKeys().get(superLongId));
     assertEquals(longValue, metadata.getCustomKeys().get(longId));
 
-    // test the max number of attributes. We've already set 2.
-    for (int i = 2; i < UserMetadata.MAX_ATTRIBUTES; ++i) {
-      final String key = "key" + i;
-      final String value = "value" + i;
-      crashlyticsCore.setCustomKey(key, value);
-      assertEquals(value, metadata.getCustomKeys().get(key));
-    }
-    // should be full now, extra key, value pairs will be dropped.
-    final String key = "new key";
-    crashlyticsCore.setCustomKey(key, "some value");
-    assertFalse(metadata.getCustomKeys().containsKey(key));
-
-    // should be able to update existing keys
-    crashlyticsCore.setCustomKey(key1, longValue);
-    assertEquals(longValue, metadata.getCustomKeys().get(key1));
-
     // when we set a key to null, it should still exist with an empty value
     crashlyticsCore.setCustomKey(key1, null);
     assertEquals("", metadata.getCustomKeys().get(key1));
@@ -144,6 +129,37 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
     crashlyticsCore.setCustomKey(" " + key1 + " ", " " + longValue + " ");
     assertTrue(metadata.getCustomKeys().containsKey(key1));
     assertEquals(longValue, metadata.getCustomKeys().get(key1));
+  }
+
+  public void testCustomAttributesOverMaxEntries() throws Exception {
+    UserMetadata metadata = crashlyticsCore.getController().getUserMetadata();
+
+    for (int i = 0; i < UserMetadata.MAX_ATTRIBUTES + 1; i++) {
+      String key = "key" + i;
+      String value = "value" + i;
+      crashlyticsCore.setCustomKey(key, value);
+    }
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
+    assertFalse(metadata.getCustomKeys().containsKey("key0"));
+    assertTrue(metadata.getCustomKeys().containsKey("key" + UserMetadata.MAX_ATTRIBUTES));
+
+    // Update an intermediate key and ensure nothing is removed
+    crashlyticsCore.setCustomKey("key10", "newValue");
+
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
+    assertTrue(metadata.getCustomKeys().containsKey("key1"));
+    assertTrue(metadata.getCustomKeys().containsKey("key" + UserMetadata.MAX_ATTRIBUTES));
+    assertEquals(metadata.getCustomKeys().get("key10"), "newValue");
+
+    // Add a bunch more and ensure the latest-updated keys are kept.
+    for (int i = 0; i < UserMetadata.MAX_ATTRIBUTES - 2; i++) {
+      String key = "newKey" + i;
+      String value = "newValue" + i;
+      crashlyticsCore.setCustomKey(key, value);
+    }
+    // key10 should have been retained since it was updated after the original for loop.
+    assertEquals(metadata.getCustomKeys().get("key10"), "newValue");
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
   }
 
   public void testBulkCustomKeys() throws Exception {
@@ -222,20 +238,6 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
       final String value = "value" + i;
     }
 
-    Map<String, String> extraKeysAndValues = new HashMap<>();
-    for (int i = UserMetadata.MAX_ATTRIBUTES; i < UserMetadata.MAX_ATTRIBUTES + 10; ++i) {
-      final String key = "key" + i;
-      final String value = "value" + i;
-      extraKeysAndValues.put(key, value);
-    }
-    crashlyticsCore.setCustomKeys(extraKeysAndValues);
-
-    // Make sure the extra keys were not added
-    for (int i = UserMetadata.MAX_ATTRIBUTES; i < UserMetadata.MAX_ATTRIBUTES + 10; ++i) {
-      final String key = "key" + i;
-      assertFalse(metadata.getCustomKeys().containsKey(key));
-    }
-
     // Check updating existing keys and setting to null
     final String updatedStringValue = "string value 1";
     final boolean updatedBooleanValue = false;
@@ -264,6 +266,46 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
     assertEquals(updatedLongValue, Long.parseLong(metadata.getCustomKeys().get(longKey)), DELTA);
     assertEquals(updatedIntValue, Integer.parseInt(metadata.getCustomKeys().get(intKey)), DELTA);
     assertEquals("", metadata.getCustomKeys().get(longId));
+  }
+
+  public void testBulkCustomKeysOverMaxEntries() throws Exception {
+    UserMetadata metadata = crashlyticsCore.getController().getUserMetadata();
+
+    Map<String, String> bulkKeys1 = new TreeMap<>();
+    for (int i = 0; i < 30; i++) {
+      crashlyticsCore.setCustomKey("oldKey" + i, "oldValue" + i);
+      bulkKeys1.put("bulkKey" + i, "v" + i);
+    }
+
+    crashlyticsCore.setCustomKeys(bulkKeys1);
+    assertEquals(60, metadata.getCustomKeys().size());
+
+    Map<String, String> bulkKeys2 = new TreeMap<>();
+    for (int i = 30; i < UserMetadata.MAX_ATTRIBUTES; i++) {
+      bulkKeys2.put("bulkKey" + i, "v" + i);
+    }
+
+    crashlyticsCore.setCustomKeys(bulkKeys2);
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, bulkKeys1.size() + bulkKeys2.size());
+    assertTrue(metadata.getCustomKeys().entrySet().containsAll(bulkKeys1.entrySet()));
+    assertTrue(metadata.getCustomKeys().entrySet().containsAll(bulkKeys2.entrySet()));
+
+    Map<String, String> bulkKeys3 = new TreeMap<>();
+    bulkKeys3.put("bulkKey300", "v");
+    bulkKeys3.put("bulkKey301", "v");
+    bulkKeys3.put("bulkKey302", "v");
+
+    crashlyticsCore.setCustomKeys(bulkKeys3);
+
+    assertTrue(metadata.getCustomKeys().containsKey("bulkKey300"));
+    assertTrue(metadata.getCustomKeys().containsKey("bulkKey301"));
+    assertTrue(metadata.getCustomKeys().containsKey("bulkKey302"));
+
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey0"));
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey1"));
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey2"));
+    assertTrue(metadata.getCustomKeys().containsKey("bulkKey3"));
   }
 
   public void testGetVersion() {

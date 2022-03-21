@@ -29,6 +29,9 @@ class KeysMap {
   // HashMap with synchronized access is more straightforward, and enables us to continue allowing
   // NULL values.
   private final Map<String, String> keys = new HashMap<>();
+  private final Map<String, Long> keysRank = new HashMap<>();
+  private long nextKeyRank = 0;
+
   private final int maxEntries;
   private final int maxEntryLength;
 
@@ -40,50 +43,62 @@ class KeysMap {
   /** @return defensive, unmodifiable copy of the key/value pairs. */
   @NonNull
   public synchronized Map<String, String> getKeys() {
-    return Collections.unmodifiableMap(new HashMap<String, String>(keys));
+    return Collections.unmodifiableMap(new HashMap<>(keys));
   }
 
   public synchronized boolean setKey(String key, String value) {
     String sanitizedKey = sanitizeKey(key);
-    // The entry can be added if we're under the size limit or we're updating an existing entry
-    if (keys.size() < maxEntries || keys.containsKey(sanitizedKey)) {
-      String santitizedAttribute = sanitizeString(value, maxEntryLength);
-      if (CommonUtils.nullSafeEquals(keys.get(sanitizedKey), santitizedAttribute)) {
-        return false;
-      }
-      keys.put(sanitizedKey, value == null ? "" : santitizedAttribute);
-      return true;
+
+    keysRank.put(sanitizedKey, nextKeyRank);
+    nextKeyRank++;
+
+    String santitizedAttribute = sanitizeString(value, maxEntryLength);
+    if (CommonUtils.nullSafeEquals(keys.get(sanitizedKey), santitizedAttribute)) {
+      return false;
     }
-    Logger.getLogger()
-        .w(
-            "Ignored entry \""
-                + key
-                + "\" when adding custom keys. Maximum allowable: "
-                + maxEntries);
-    return false;
+
+    keys.put(sanitizedKey, value == null ? "" : santitizedAttribute);
+
+    capKeysEntries();
+    return true;
   }
 
   public synchronized void setKeys(Map<String, String> keysAndValues) {
-    int nOverLimit = 0;
     for (Map.Entry<String, String> entry : keysAndValues.entrySet()) {
       String sanitizedKey = sanitizeKey(entry.getKey());
-      // The entry can be added if we're under the size limit or we're updating an existing entry
-      if (keys.size() < maxEntries || keys.containsKey(sanitizedKey)) {
-        String value = entry.getValue();
-        keys.put(sanitizedKey, value == null ? "" : sanitizeString(value, maxEntryLength));
-      } else {
-        ++nOverLimit;
+      String value = entry.getValue();
+      keys.put(sanitizedKey, value == null ? "" : sanitizeString(value, maxEntryLength));
+      keysRank.put(sanitizedKey, nextKeyRank);
+      nextKeyRank++;
+    }
+    capKeysEntries();
+  }
+
+  private synchronized void capKeysEntries() {
+    int purgedKeyCount = 0;
+
+    while (keys.size() > maxEntries) {
+      Map.Entry<String, Long> oldest = null;
+      for (Map.Entry<String, Long> entry : keysRank.entrySet()) {
+        if (oldest == null || entry.getValue() < oldest.getValue()) {
+          oldest = entry;
+        }
+      }
+
+      if (oldest != null) {
+        keysRank.remove(oldest.getKey());
+        keys.remove(oldest.getKey());
+        purgedKeyCount++;
       }
     }
-    if (nOverLimit > 0) {
-      Logger.getLogger()
-          .w(
-              "Ignored "
-                  + nOverLimit
-                  + " entries when adding custom keys. "
-                  + "Maximum allowable: "
-                  + maxEntries);
-    }
+
+    Logger.getLogger()
+        .w(
+            "Over limit of "
+                + maxEntries
+                + " custom keys. Purged "
+                + purgedKeyCount
+                + " oldest key(s).");
   }
 
   /** Checks that the key is not null then sanitizes it. */
