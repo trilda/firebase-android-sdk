@@ -44,6 +44,7 @@ import com.google.firebase.crashlytics.internal.settings.TestSettingsData;
 import com.google.firebase.crashlytics.internal.settings.model.SettingsData;
 import com.google.firebase.inject.Deferred;
 import com.google.firebase.installations.FirebaseInstallationsApi;
+import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -271,41 +272,50 @@ public class CrashlyticsCoreTest extends CrashlyticsTestCase {
   public void testBulkCustomKeysOverMaxEntries() throws Exception {
     UserMetadata metadata = crashlyticsCore.getController().getUserMetadata();
 
-    Map<String, String> bulkKeys1 = new TreeMap<>();
-    for (int i = 0; i < 30; i++) {
-      crashlyticsCore.setCustomKey("oldKey" + i, "oldValue" + i);
-      bulkKeys1.put("bulkKey" + i, "v" + i);
-    }
+    // To simplify this set of tests, we rely on some magic numbers. These will need to be updated
+    // if UserMetadata.MAX_ATTRIBUTES changes.
+    assertEquals(64, UserMetadata.MAX_ATTRIBUTES);
 
+    // Add 30 key/values conventionally and 30 in bulk.
+    Map<String, String> bulkKeys1 = new TreeMap<>();
+    DecimalFormat pad = new DecimalFormat("000");
+    for (int i = 0; i < 30; i++) {
+      crashlyticsCore.setCustomKey("oldKey" + pad.format(i), "oldValue" + i);
+      bulkKeys1.put("bulkKey" + pad.format(i), "v" + i);
+    }
     crashlyticsCore.setCustomKeys(bulkKeys1);
     assertEquals(60, metadata.getCustomKeys().size());
 
+    // Add exactly enough new values to purge the original 30
     Map<String, String> bulkKeys2 = new TreeMap<>();
     for (int i = 30; i < UserMetadata.MAX_ATTRIBUTES; i++) {
-      bulkKeys2.put("bulkKey" + i, "v" + i);
+      bulkKeys2.put("bulkKey" + pad.format(i), "v" + i);
     }
-
     crashlyticsCore.setCustomKeys(bulkKeys2);
+    // iff the customkeys size is equal to the bulkKeys1 + bulkKeys2, and it containsAll() of both
+    // Sets, then customkeys is equivalent to union(bulkKeys1, bulkKeys2).
     assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
     assertEquals(UserMetadata.MAX_ATTRIBUTES, bulkKeys1.size() + bulkKeys2.size());
     assertTrue(metadata.getCustomKeys().entrySet().containsAll(bulkKeys1.entrySet()));
     assertTrue(metadata.getCustomKeys().entrySet().containsAll(bulkKeys2.entrySet()));
 
+    // Bulk add a few more keys and make sure the oldest keys are purged.
     Map<String, String> bulkKeys3 = new TreeMap<>();
     bulkKeys3.put("bulkKey300", "v");
     bulkKeys3.put("bulkKey301", "v");
     bulkKeys3.put("bulkKey302", "v");
-
     crashlyticsCore.setCustomKeys(bulkKeys3);
 
+    assertEquals(UserMetadata.MAX_ATTRIBUTES, metadata.getCustomKeys().size());
     assertTrue(metadata.getCustomKeys().containsKey("bulkKey300"));
     assertTrue(metadata.getCustomKeys().containsKey("bulkKey301"));
     assertTrue(metadata.getCustomKeys().containsKey("bulkKey302"));
 
-    assertFalse(metadata.getCustomKeys().containsKey("bulkKey0"));
-    assertFalse(metadata.getCustomKeys().containsKey("bulkKey1"));
-    assertFalse(metadata.getCustomKeys().containsKey("bulkKey2"));
-    assertTrue(metadata.getCustomKeys().containsKey("bulkKey3"));
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey001"));
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey001"));
+    assertFalse(metadata.getCustomKeys().containsKey("bulkKey002"));
+    // This one should still be there:
+    assertTrue(metadata.getCustomKeys().containsKey("bulkKey003"));
   }
 
   public void testGetVersion() {
