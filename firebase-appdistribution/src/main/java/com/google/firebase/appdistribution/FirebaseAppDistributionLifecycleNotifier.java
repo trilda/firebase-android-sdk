@@ -25,6 +25,8 @@ import com.google.android.gms.tasks.SuccessContinuation;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.appdistribution.internal.LogWrapper;
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.Executor;
@@ -33,6 +35,7 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
 
   /** An {@link Executor} that runs tasks on the current thread. */
   private static final Executor DIRECT_EXECUTOR = Runnable::run;
+  private static final String TAG = "FirebaseAppDistributionLifecycleNotifier:";
 
   /** A functional interface for a function that takes an activity and does something with it. */
   interface ActivityConsumer<T> {
@@ -40,10 +43,15 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
   }
 
   private static FirebaseAppDistributionLifecycleNotifier instance;
+  @Nullable private final boolean shouldAutoUpdateOnLaunch;
+
   private final Object lock = new Object();
 
   @GuardedBy("lock")
   private Activity currentActivity;
+
+  @GuardedBy("lock")
+  private boolean hasAutoUpdatedOnLaunch = false;
 
   /** A queue of listeners that trigger when the activity is foregrounded. */
   @GuardedBy("lock")
@@ -66,7 +74,22 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
   private final Queue<OnActivityDestroyedListener> onDestroyedListeners = new ArrayDeque<>();
 
   @VisibleForTesting
-  FirebaseAppDistributionLifecycleNotifier() {}
+  FirebaseAppDistributionLifecycleNotifier() {
+    shouldAutoUpdateOnLaunch = getShouldAutoUpdateOnLaunch();
+  }
+
+  static boolean getShouldAutoUpdateOnLaunch(){
+    try {
+      Field field = BuildConfig.class.getField("AUTO_UPDATE_ON_LAUNCH");
+      return field.getBoolean(null);
+    } catch (NoSuchFieldException e) {
+      // Not configured to auto update on launch
+      return false;
+    } catch (IllegalAccessException e) {
+      LogWrapper.getInstance().e(TAG + "Unable to check for auto update on launch", e);
+      return false;
+    }
+  }
 
   static synchronized FirebaseAppDistributionLifecycleNotifier getInstance() {
     if (instance == null) {
@@ -218,6 +241,12 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
 
   @Override
   public void onActivityResumed(@NonNull Activity activity) {
+    // If this is the first activity after launch, run the basic config
+    if (shouldAutoUpdateOnLaunch && !hasAutoUpdatedOnLaunch) {
+      FirebaseAppDistribution.getInstance().updateIfNewReleaseAvailable().addOnFailureListener(e -> {
+        LogWrapper.getInstance().e(TAG + "Auto update on launch failed", e);
+      });
+    }
     synchronized (lock) {
       currentActivity = activity;
       for (OnActivityResumedListener listener : onActivityResumedListeners) {
