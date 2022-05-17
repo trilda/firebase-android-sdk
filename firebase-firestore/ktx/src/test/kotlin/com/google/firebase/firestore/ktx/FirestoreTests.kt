@@ -49,7 +49,7 @@ abstract class BaseTestCase {
                 FirebaseOptions.Builder()
                         .setApplicationId(APP_ID)
                         .setApiKey(API_KEY)
-                        .setProjectId("1234")
+                        .setProjectId("123")
                         .build()
         )
 
