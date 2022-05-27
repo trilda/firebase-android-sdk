@@ -31,6 +31,12 @@ import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.android.gms.tasks.Tasks;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.firebaseapptesters.v1alpha.Firebaseapptesters;
+import com.google.api.services.firebaseapptesters.v1alpha.Firebaseapptesters.Projects.Installations.Releases.Feedback.Commit;
+import com.google.api.services.firebaseapptesters.v1alpha.model.GoogleFirebaseApptestersV1alphaCommitFeedbackRequest;
+import com.google.api.services.firebaseapptesters.v1alpha.model.GoogleFirebaseApptestersV1alphaFeedback;
+import com.google.api.services.firebaseapptesters.v1alpha.model.GoogleFirebaseApptestersV1alphaFindReleaseResponse;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.appdistribution.AppDistributionRelease;
 import com.google.firebase.appdistribution.BinaryType;
@@ -42,6 +48,9 @@ import com.google.firebase.appdistribution.UpdateStatus;
 import com.google.firebase.appdistribution.UpdateTask;
 import com.google.firebase.inject.Provider;
 import com.google.firebase.installations.FirebaseInstallationsApi;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import java.io.IOException;
+import java.util.concurrent.Executors;
 
 /**
  * This class is the "real" implementation of the Firebase App Distribution API which should only be
@@ -322,6 +331,48 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
         return apkUpdater.updateApk(cachedNewRelease, showDownloadInNotificationManager);
       }
     }
+  }
+
+  @Override
+  public void collectAndSendFeedback() {
+    // TODO: sign in first
+    Firebaseapptesters firebaseapptesters = new Firebaseapptesters(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(), null);
+    testerSignInManager.getSignedInInstallationName().addOnSuccessListener(
+        Executors.newSingleThreadExecutor(), installationName -> {
+      // TODO(lkellogg): Support AAB (IAS artifact ID)
+          GoogleFirebaseApptestersV1alphaFindReleaseResponse findReleaseResponse = null;
+          LogWrapper.getInstance().e("LKELLOGG: making request");
+          try {
+            findReleaseResponse = firebaseapptesters.projects().installations().releases()
+                .find(installationName).setApkHash(newReleaseFetcher.extractApkHash()).execute();
+          } catch (IOException e) {
+            e.printStackTrace();
+          } catch (FirebaseAppDistributionException e) {
+            e.printStackTrace();
+          }
+          LogWrapper.getInstance().e("LKELLOGG: got response, " + findReleaseResponse.getRelease());
+          GoogleFirebaseApptestersV1alphaFeedback createFeedbackResponse = null;
+          try {
+            createFeedbackResponse = firebaseapptesters.projects()
+                .installations().releases().feedback().create(findReleaseResponse.getRelease(),
+                    new GoogleFirebaseApptestersV1alphaFeedback().setText("This app is cool!"))
+                .execute();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          LogWrapper.getInstance().e("LKELLOGG: got response, " + createFeedbackResponse.getName());
+          Commit commitFeedbackResponse = null;
+          try {
+            commitFeedbackResponse = firebaseapptesters.projects()
+                .installations().releases().feedback().commit(
+                    createFeedbackResponse.getName(),
+                    new GoogleFirebaseApptestersV1alphaCommitFeedbackRequest());
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          LogWrapper.getInstance().e("LKELLOGG: got response, " + commitFeedbackResponse.getName());
+        });
   }
 
   @VisibleForTesting
