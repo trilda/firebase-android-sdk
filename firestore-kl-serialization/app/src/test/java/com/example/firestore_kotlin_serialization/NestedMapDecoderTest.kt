@@ -23,7 +23,7 @@ class NestedMapDecoderTest {
     fun decodePlainMap() {
         val plainMap =
             mapOf<String, Any>("name" to "kotlinx.serialization", "ownerName" to "kotlin")
-        val decodedObject = decodeFromNestedMap<PlainProject>(plainMap, firestoreDocument)
+        val decodedObject = decodeFromNestedMap<PlainProject>(plainMap, firestoreDocument, null)
         val expectedObject = PlainProject("kotlinx.serialization", "kotlin")
         assertTrue(decodedObject == expectedObject)
     }
@@ -32,7 +32,7 @@ class NestedMapDecoderTest {
     fun decodeRandomOrderMap() {
         val plainMap =
             mapOf<String, Any>("ownerName" to "kotlin", "name" to "kotlinx.serialization")
-        val decodedObject = decodeFromNestedMap<PlainProject>(plainMap, firestoreDocument)
+        val decodedObject = decodeFromNestedMap<PlainProject>(plainMap, firestoreDocument, null)
         val expectedObject = PlainProject("kotlinx.serialization", "kotlin")
         assertTrue(decodedObject == expectedObject)
     }
@@ -42,7 +42,7 @@ class NestedMapDecoderTest {
         val ownerMap = mapOf<String, Any>("name" to "kotlin")
         val mapInsideOfMap =
             mapOf<String, Any>("name" to "kotlinx.serialization", "owner" to ownerMap)
-        val decodedObject = decodeFromNestedMap<MapInsideOfMapProject>(mapInsideOfMap, firestoreDocument)
+        val decodedObject = decodeFromNestedMap<MapInsideOfMapProject>(mapInsideOfMap, firestoreDocument, null)
         val expectedObject = MapInsideOfMapProject("kotlinx.serialization", Owner("kotlin"))
         assertTrue(decodedObject == expectedObject)
     }
@@ -56,7 +56,7 @@ class NestedMapDecoderTest {
         )
         val listInsideOfMap =
             mapOf<String, Any>("name" to "kotlinx.serialization", "listOfOwner" to listOfOwnerMap)
-        val decodedObject = decodeFromNestedMap<ListInsideOfMapProject>(listInsideOfMap, firestoreDocument)
+        val decodedObject = decodeFromNestedMap<ListInsideOfMapProject>(listInsideOfMap, firestoreDocument, null)
         val listOfOwner = listOf<Owner>(Owner("a"), Owner("b"), Owner("c"))
         val expectedObject = ListInsideOfMapProject("kotlinx.serialization", listOfOwner)
         assertTrue(decodedObject == expectedObject)

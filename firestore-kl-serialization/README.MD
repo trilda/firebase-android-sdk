@@ -10,3 +10,14 @@
 3. Kotlin version is currently 1.6.21, target is 1.5.32 (tried 1.4.32, but integration test will not run, will do more test if 1.4 is really necessary)
 
 ### Some Known issue about this implementation
+
+### Implementation details:
+1. The support for Enum
+   1. For an Enum object, The current java reflection based solution does not support to deserialize a document in its lower case. For example, 
+   ```
+   // if an extension is saving an enum object in its lower case, while, on the client side, it is not possible to deserialize it back, customer always need to write some extra logic by themself:
+   inline fun DocumentSnapshot.getPayment(): Payment = 
+       this.get("status").toString().uppercase().let{
+            Payment(this.toObject<Payment>()).copy(status = PaymentState.valueOf(it))
+   }
+```
