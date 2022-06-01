@@ -163,3 +163,7 @@ inline fun <reified T> DocumentSnapshot.get(): T? {
     val objectMap = this.data // Map<String!, Any!>?
     return objectMap?.let { decodeFromNestedMap<T>(it, firestoreDocument) }
 }
+
+fun main() {
+    println("xxx")
+}

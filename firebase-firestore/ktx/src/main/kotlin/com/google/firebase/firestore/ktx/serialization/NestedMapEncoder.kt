@@ -167,12 +167,16 @@ fun <T> encodeToMap(serializer: SerializationStrategy<T>, value: T): MutableMap<
 inline fun <reified T> encodeToMap(value: T): MutableMap<String, Any?> =
     encodeToMap(serializer(), value)
 
-inline fun <reified T> DocumentReference.set(value: T) {
+//inline fun <reified T> DocumentReference.set(value: T) {
+//    val encodedMap = encodeToMap<T>(value)
+//    set(encodedMap)
+//}
+
+inline fun <reified T> DocumentReference.setData(value: T) {
     val encodedMap = encodeToMap<T>(value)
-    set(encodedMap)
+    this.set(encodedMap)
 }
 
-inline fun <reified T> DocumentReference.serialSet(value: T) {
-    val encodedMap = encodeToMap<T>(value)
-    set(encodedMap)
+fun main() {
+    println("yyyyy")
 }
