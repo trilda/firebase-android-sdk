@@ -158,7 +158,7 @@ fun <T> decodeFromNestedMap(map: Map<String, Any?>, deserializer: Deserializatio
 inline fun <reified T> decodeFromNestedMap(map: Map<String, Any?>, firestoreDocument: FirestoreDocument?): T =
     decodeFromNestedMap(map, serializer(), firestoreDocument)
 
-inline fun <reified T> DocumentSnapshot.get(): T? {
+inline fun <reified T> DocumentSnapshot.getData(): T? {
     val firestoreDocument = FirestoreDocument(this.id, this.reference)
     val objectMap = this.data // Map<String!, Any!>?
     return objectMap?.let { decodeFromNestedMap<T>(it, firestoreDocument) }
