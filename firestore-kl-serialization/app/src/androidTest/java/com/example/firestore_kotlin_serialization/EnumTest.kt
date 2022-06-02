@@ -1,6 +1,7 @@
 package com.example.firestore_kotlin_serialization
 
 import android.util.Log
+import com.example.firestore_kotlin_serialization.annotations.KServerTimestamp
 import com.example.firestore_kotlin_serialization.testutil.IntegrationTestUtil
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
@@ -10,6 +11,8 @@ import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
 import kotlinx.serialization.Serializable
 import org.junit.Test
+import java.util.*
+import kotlin.test.assertEquals
 
 class EnumTest {
 
@@ -62,23 +65,49 @@ class EnumTest {
 //        print(" decoded obj from firestore is $myDecodeObj")
 //    }
 
-    data class TimeTestClass(@ServerTimestamp var time: Timestamp? = null, val number: Long = 150)
+    data class TimeTestClass(var time: Timestamp? = null, val number: Long = 150)
 
     @Test
     fun testServerTimeStamp() {
         val db = Firebase.firestore
-        val docRefKotlin = db.collection("time").document("timestamp")
+        val docRefKotlin = db.collection("timexxxxxxxxxxxxxxxxx").document("timestamp")
 
-//        val map = mapOf<String, Any>("time" to FieldValue.serverTimestamp())
-//        docRefKotlin.set(TimeTestClass())
-        val docSnapshot: DocumentSnapshot = IntegrationTestUtil.waitFor(docRefKotlin.get())
-        Log.d("LogTest", ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        Log.d("LogTest", "$docSnapshot")
-        Log.d("LogTest", "this is the raw data ${docSnapshot.data}")
-        val myObject = docSnapshot.toObject<TimeTestClass>()
-        Log.d("LogTest", "this is the decoded data ${docSnapshot.toObject<TimeTestClass>()}")
-        Log.d("LogTest", "===================================")
-        var ttt: Timestamp? = docSnapshot.getTimestamp("time", DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-        Log.d("LogTest", "$ttt")
+//        val docRefKotlin = IntegrationTestUtil.testDocument("kotlin_setxxxxxxxxxx")
+
+        // Test saving a ServerTimestamp to firestore
+        val time: Timestamp = Timestamp(1L, 0)
+        val time2: Timestamp = Timestamp(Date(100L))
+        val myPojoObject = TimeTestClass(time2, 10990L)
+        docRefKotlin.set(myPojoObject)
+
+        val docSnapt = IntegrationTestUtil.waitFor(docRefKotlin.get())
+
+        assertEquals(time, docSnapt.toObject<TimeTestClass>()?.time)
+    }
+
+    @Test
+    fun testForTest() {
+        assertEquals(true, false)
+    }
+
+    @Serializable
+    data class NestedMapServerTimestamp(@KServerTimestamp @Serializable(with = SuperTimestampSerializer::class) val time: Timestamp? = null)
+
+    @Test
+    fun nestedMapServerTimeStamp() {
+        val db = Firebase.firestore
+        val docRefKotlin = db.collection("time").document("timestamp")
+        val time: Timestamp = Timestamp(1L, 0)
+
+        val myKotlinObject = NestedMapServerTimestamp()
+        docRefKotlin.setData(myKotlinObject)
+        debugPrint("LogTest", "<<<<<<<<<<<<<<<<<<<<<  END OF ENDOING        >>>>>>>>>  ")
+        val docSnapt = IntegrationTestUtil.waitFor(docRefKotlin.get())
+        val xxxx = docSnapt.getTimestamp("time", DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+        debugPrint("LogTest", "<<<<<<<<<<<<<<<<<<<<<>>>>>>>>> set the server timestamp to be {$xxxx?} ")
+        val obje = docSnapt.get<NestedMapServerTimestamp>()
+        val kotlindata = obje?.time
+
+        assertEquals(time, obje?.time)
     }
 }

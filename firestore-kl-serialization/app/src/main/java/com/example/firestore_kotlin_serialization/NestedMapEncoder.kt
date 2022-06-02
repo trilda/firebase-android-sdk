@@ -14,9 +14,11 @@
 
 package com.example.firestore_kotlin_serialization
 
-import android.util.Log
 import com.example.firestore_kotlin_serialization.annotations.KDocumentId
+import com.example.firestore_kotlin_serialization.annotations.KServerTimestamp
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldValue
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -48,30 +50,51 @@ class NestedMapEncoder(
     override val serializersModule: SerializersModule = EmptySerializersModule
 
     override fun encodeEnum(enumDescriptor: SerialDescriptor, index: Int) {
-        Log.d("LogTest", ">>>>>>> There is a Enum for me to encode")
-        Log.d("LogTest", ">>>>>>> $enumDescriptor")
+        debugPrint("LogTest", ">>>>>>> There is a Enum for me to encode")
+        debugPrint("LogTest", ">>>>>>> $enumDescriptor")
         val encodeValue = enumDescriptor.elementNames
-        Log.d("LogTest", ">>>>>>>elements names are ${encodeValue.toList()}")
-        Log.d("LogTest", ">>>>>>>elements annotations are ${enumDescriptor.getElementAnnotations(0)}")
+        debugPrint("LogTest", ">>>>>>>elements names are ${encodeValue.toList()}")
+        debugPrint("LogTest", ">>>>>>>elements annotations are ${enumDescriptor.getElementAnnotations(0)}")
         encodeValue(encodeValue.toList().get(index))
     }
 
-    override fun encodeNull() {
+    fun encodeTimestamp(value: Timestamp) {
         val key: String = list[elementIndex++] as String
-        map[depth]!!.put(key, null)
+        map[depth]!!.put(key, value)
+    }
+
+    override fun encodeNull() {
+        debugPrint("LogTest", ">>>>>>> There is a Null I need to endocde ================")
+        // If the null value is annoted with KServerTimestamp, I put the field value
+        val elementAnnotations: List<Annotation> = descriptor!!.getElementAnnotations(elementIndex)
+        val elementKind = descriptor!!.getElementDescriptor(elementIndex).kind
+        val elementName = descriptor!!.serialName
+        val replaceServerTimestamp = elementAnnotations?.any { it is KServerTimestamp }
+        val key: String = list[elementIndex++] as String
+        if (replaceServerTimestamp) {
+            debugPrint("LogTest", ">>>========= Going to put server timestamp field value ==========================")
+
+            map[depth]!!.put(key, FieldValue.serverTimestamp())
+        } else {
+            map[depth]!!.put(key, null)
+        }
     }
 
     override fun encodeValue(value: Any) {
-        Log.d("LogTest", "========= encodeValue is: $value ==========================")
+        debugPrint("LogTest", "========= encodeValue is: $value ==========================")
         val elementAnnotations: List<Annotation> = descriptor!!.getElementAnnotations(elementIndex)
         val elementKind = descriptor!!.getElementDescriptor(elementIndex).kind
+        val elementName = descriptor!!.serialName
+        debugPrint("LogTest", "========= encode element Kind and serialName is: $elementKind  and $elementName ==========================")
         val skipDocumentId = elementAnnotations?.any { it is KDocumentId }
         if (skipDocumentId && elementKind != PrimitiveKind.STRING) {
             // TODO: DocumentReference is not a primitive type, so I need to make it @Serializable so I can have it
             throw IllegalArgumentException("Field is annotated with @DocumentId but is class $elementKind instead of String or DocumentReference.")
         }
+
         if (skipDocumentId && depth == ROOT_LEVEL) {
             elementIndex++ // skip encoding any field annotated with @DocumentId at root level
+            // TODO: Andy want to to skip encoding any field with @DocumentId, not only at root level, but also at any level
         } else {
             val key: String = list[elementIndex++] as String
             map[depth]!!.put(key, value)
@@ -87,13 +110,13 @@ class NestedMapEncoder(
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
         // TODO: @DocumentID and @ServerTimeStamp should not be applied on Structures
         var listOfElementsToBeEncoded: MutableList<Any> = mutableListOf()
-        Log.d("LogTest", "========= Map's Descriptor is: $descriptor ==========================")
+        debugPrint("LogTest", "========= Map's Descriptor is: $descriptor ==========================")
         if (!descriptor.elementNames.toList().isNullOrEmpty()) {
             listOfElementsToBeEncoded = descriptor.elementNames.toList() as MutableList<Any>
-            Log.d("LogTest", "========= listOfElementsToBeEncoded is: $listOfElementsToBeEncoded ==========================")
+            debugPrint("LogTest", "========= listOfElementsToBeEncoded is: $listOfElementsToBeEncoded ==========================")
             // save the descriptor for each of the elements need to be encoded:
             for (i in 0..listOfElementsToBeEncoded.size - 1) {
-                Log.d("LogTest", "========= element $i's descriptor is: ${descriptor.getElementDescriptor(i).kind} ==========================")
+                debugPrint("LogTest", "========= element $i's descriptor is: ${descriptor.getElementDescriptor(i).kind} ==========================")
             }
         }
 
@@ -179,6 +202,11 @@ inline fun <reified T> encodeToMap(value: T): MutableMap<String, Any?> =
     encodeToMap(serializer(), value)
 
 inline fun <reified T> DocumentReference.set(value: T) {
+    val encodedMap = encodeToMap<T>(value)
+    set(encodedMap)
+}
+
+inline fun <reified T> DocumentReference.setData(value: T) {
     val encodedMap = encodeToMap<T>(value)
     set(encodedMap)
 }
