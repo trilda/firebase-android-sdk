@@ -14,11 +14,19 @@
 
 package com.google.firebase.perf.metrics;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Application;
 import android.app.Application.ActivityLifecycleCallbacks;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Process;
+import android.os.SystemClock;
+import android.view.View;
+import android.view.ViewTreeObserver;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -40,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A class to capture the Android AppStart Trace information. The first time activity goes through
@@ -69,6 +78,7 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
   private boolean isRegisteredForLifecycleCallbacks = false;
   private final TransportManager transportManager;
   private final Clock clock;
+  private final Handler sMainThreadHandler = new Handler(Looper.getMainLooper());
   private Context appContext;
   /**
    * The first time onCreate() of any activity is called, the activity is saved as launchActivity.
@@ -89,6 +99,9 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
   private Timer onCreateTime = null;
   private Timer onStartTime = null;
   private Timer onResumeTime = null;
+  private Timer onDrawTime = null;
+  private long onDrawElapsedRealTime;
+  private Timer fullyDrawnTime = null;
 
   private PerfSession startSession;
   private boolean isStartedFromBackground = false;
@@ -139,7 +152,7 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
                       MAX_POOL_SIZE,
                       /* keepAliveTime= */ MAX_LATENCY_BEFORE_UI_INIT + 10,
                       TimeUnit.SECONDS,
-                      new LinkedBlockingQueue<>(1)));
+                      new LinkedBlockingQueue<>()));
         }
       }
     }
@@ -153,6 +166,25 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
     this.transportManager = transportManager;
     this.clock = clock;
     this.executorService = executorService;
+  }
+
+  private void recordFirstOnDraw() {
+    this.onDrawTime = clock.getTime();
+    this.onDrawElapsedRealTime = SystemClock.elapsedRealtime();
+
+    // Start when ContentProvider is loaded
+    executorService.execute(this::logColdStartupClassLoading);
+    // Start right before app is about to get loaded to memory. No app code has executed yet.
+    executorService.execute(this::logColdStartupBeforeAppLoad);
+  }
+
+  public void reportFullyDrawn() {
+    if (!isStartedFromBackground
+        && Thread.currentThread() == Looper.getMainLooper().getThread()
+        && fullyDrawnTime == null) {
+      this.fullyDrawnTime = clock.getTime();
+      executorService.execute(this::logColdStartupFullyDrawn);
+    }
   }
 
   /** Called from FirebasePerfProvider to register this callback. */
@@ -228,10 +260,55 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
     // Log the app start trace in a non-main thread.
     executorService.execute(this::logAppStartTrace);
 
+    // views are available after setContentView which should be called in onCreate
+    View rootView = activity.findViewById(android.R.id.content);
+    if (rootView != null) {
+      ViewTreeObserver observer = rootView.getViewTreeObserver();
+      observer.addOnDrawListener(new FirstOnDrawListener(rootView));
+    }
+
     if (isRegisteredForLifecycleCallbacks) {
       // After AppStart trace is logged, we can unregister this callback.
       unregisterActivityLifecycleCallbacks();
     }
+  }
+
+  private void logColdStartupClassLoading() {
+    TraceMetric.Builder metric =
+        TraceMetric.newBuilder()
+            .setName("TTID_PRIMES_FrontOfQueue")
+            .setClientStartTimeUs(getappStartTime().getMicros())
+            .setDurationUs(getappStartTime().getDurationMicros(onDrawTime));
+    metric.addPerfSessions(this.startSession.build());
+
+    transportManager.log(metric.build(), ApplicationProcessState.FOREGROUND_BACKGROUND);
+  }
+
+  private void logColdStartupBeforeAppLoad() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return;
+    }
+    TraceMetric.Builder metric =
+        TraceMetric.newBuilder()
+            .setName("TTID_PRIMES_from_BeforeAppLoad")
+            .setClientStartTimeUs(getappStartTime().getMicros())
+            .setDurationUs(
+                TimeUnit.MILLISECONDS.toMicros(
+                    onDrawElapsedRealTime - Process.getStartElapsedRealtime()));
+    metric.addPerfSessions(this.startSession.build());
+
+    transportManager.log(metric.build(), ApplicationProcessState.FOREGROUND_BACKGROUND);
+  }
+
+  private void logColdStartupFullyDrawn() {
+    TraceMetric.Builder fromClassLoaded =
+        TraceMetric.newBuilder()
+            .setName("Time_To_Full_Display")
+            .setClientStartTimeUs(getappStartTime().getMicros())
+            .setDurationUs(getappStartTime().getDurationMicros(fullyDrawnTime));
+    fromClassLoaded.addPerfSessions(this.startSession.build());
+
+    transportManager.log(fromClassLoaded.build(), ApplicationProcessState.FOREGROUND_BACKGROUND);
   }
 
   private void logAppStartTrace() {
@@ -279,6 +356,31 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
 
   @Override
   public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+
+  @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+  private final class FirstOnDrawListener implements ViewTreeObserver.OnDrawListener {
+
+    private final AtomicReference<View> view;
+
+    private FirstOnDrawListener(View view) {
+      this.view = new AtomicReference<>(view);
+    }
+
+    @Override
+    public void onDraw() {
+      View theView = view.getAndSet(null);
+      if (theView == null) {
+        return;
+      }
+      // OnDrawListeners cannot be removed within onDraw, so we remove it with a
+      // GlobalLayoutListener
+      theView
+          .getViewTreeObserver()
+          .addOnGlobalLayoutListener(
+              () -> theView.getViewTreeObserver().removeOnDrawListener(this));
+      sMainThreadHandler.postAtFrontOfQueue(AppStartTrace.this::recordFirstOnDraw);
+    }
+  }
 
   /**
    * We use StartFromBackgroundRunnable to detect if app is started from background or foreground.

@@ -34,6 +34,7 @@ import com.google.firebase.perf.config.ConfigResolver;
 import com.google.firebase.perf.config.RemoteConfigManager;
 import com.google.firebase.perf.logging.AndroidLogger;
 import com.google.firebase.perf.logging.ConsoleUrlGenerator;
+import com.google.firebase.perf.metrics.AppStartTrace;
 import com.google.firebase.perf.metrics.HttpMetric;
 import com.google.firebase.perf.metrics.Trace;
 import com.google.firebase.perf.session.SessionManager;
@@ -316,6 +317,15 @@ public class FirebasePerformance implements FirebasePerformanceAttributable {
     return mPerformanceCollectionForceEnabledState != null
         ? mPerformanceCollectionForceEnabledState
         : FirebaseApp.getInstance().isDataCollectionDefaultEnabled();
+  }
+
+  /**
+   * You can call this method to record when your app is fully loaded after lazy loading. In lazy
+   * loading, an app does not block the initial drawing of the window, but instead asynchronously
+   * loads resources and updates the view hierarchy.
+   */
+  public void reportFullyDrawn() {
+    AppStartTrace.getInstance().reportFullyDrawn();
   }
 
   /**
