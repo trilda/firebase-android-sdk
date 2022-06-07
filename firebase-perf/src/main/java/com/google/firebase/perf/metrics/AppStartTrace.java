@@ -276,7 +276,7 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
   private void logColdStartupClassLoading() {
     TraceMetric.Builder metric =
         TraceMetric.newBuilder()
-            .setName("TTID_PRIMES_FrontOfQueue")
+            .setName("cold_start")
             .setClientStartTimeUs(getappStartTime().getMicros())
             .setDurationUs(getappStartTime().getDurationMicros(onDrawTime));
     metric.addPerfSessions(this.startSession.build());
@@ -288,13 +288,14 @@ public class AppStartTrace implements ActivityLifecycleCallbacks {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
       return;
     }
+    long duration =
+        TimeUnit.MILLISECONDS.toMicros(onDrawElapsedRealTime - Process.getStartElapsedRealtime());
+    long startTime = onDrawTime.getMicros() - duration;
     TraceMetric.Builder metric =
         TraceMetric.newBuilder()
-            .setName("TTID_PRIMES_from_BeforeAppLoad")
-            .setClientStartTimeUs(getappStartTime().getMicros())
-            .setDurationUs(
-                TimeUnit.MILLISECONDS.toMicros(
-                    onDrawElapsedRealTime - Process.getStartElapsedRealtime()));
+            .setName("cold_start_from_before_app_load")
+            .setClientStartTimeUs(startTime)
+            .setDurationUs(duration);
     metric.addPerfSessions(this.startSession.build());
 
     transportManager.log(metric.build(), ApplicationProcessState.FOREGROUND_BACKGROUND);
