@@ -1,6 +1,7 @@
 package com.google.firebase.firestore.ktx
 
 import com.google.firebase.firestore.ktx.serialization.encodeToMap
+import com.google.firebase.ktx.Firebase
 import kotlin.test.assertFailsWith
 import kotlinx.serialization.Serializable
 import org.junit.Assert.assertTrue

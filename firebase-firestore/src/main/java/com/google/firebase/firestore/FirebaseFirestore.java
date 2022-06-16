@@ -90,14 +90,14 @@ public class FirebaseFirestore {
   // databaseId itself that needs locking; it just saves us creating a separate lock object.
   private final DatabaseId databaseId;
   private final String persistenceKey;
-  private final CredentialsProvider<User> authProvider;
-  private final CredentialsProvider<String> appCheckProvider;
+  public final CredentialsProvider<User> authProvider;
+  public final CredentialsProvider<String> appCheckProvider;
   private final AsyncQueue asyncQueue;
   private final FirebaseApp firebaseApp;
   private final UserDataReader userDataReader;
   // When user requests to terminate, use this to notify `FirestoreMultiDbComponent` to deregister
   // this instance.
-  private final InstanceRegistry instanceRegistry;
+  public final InstanceRegistry instanceRegistry;
   @Nullable private EmulatedServiceSettings emulatorSettings;
   private FirebaseFirestoreSettings settings;
   private volatile FirestoreClient client;

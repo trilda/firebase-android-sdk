@@ -17,9 +17,11 @@ package com.google.firebase.heartbeatinfo;
 import android.content.Context;
 import android.util.Base64;
 import android.util.Base64OutputStream;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.os.UserManagerCompat;
+
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.FirebaseApp;
@@ -27,6 +29,10 @@ import com.google.firebase.components.Component;
 import com.google.firebase.components.Dependency;
 import com.google.firebase.inject.Provider;
 import com.google.firebase.platforminfo.UserAgentPublisher;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Set;
@@ -36,11 +42,10 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 /** Provides a function to store heartbeats and another function to retrieve stored heartbeats. */
-public class DefaultHeartBeatController implements HeartBeatController, HeartBeatInfo {
+public class DefaultHeartBeatController
+    implements HeartBeatController, HeartBeatInfo {
 
   private final Provider<HeartBeatInfoStorage> storageProvider;
 
@@ -144,6 +149,8 @@ public class DefaultHeartBeatController implements HeartBeatController, HeartBea
 
   public static @NonNull Component<DefaultHeartBeatController> component() {
     return Component.builder(
+            //            DefaultHeartBeatController.class, HeartBeatController.class,
+            // HeartBeatInfo.class, DummyHeartBeatInfo.class) -> I can get the component like this
             DefaultHeartBeatController.class, HeartBeatController.class, HeartBeatInfo.class)
         .add(Dependency.required(Context.class))
         .add(Dependency.required(FirebaseApp.class))

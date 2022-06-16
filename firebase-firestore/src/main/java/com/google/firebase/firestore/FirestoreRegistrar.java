@@ -15,8 +15,10 @@
 package com.google.firebase.firestore;
 
 import android.content.Context;
+
 import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
+
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.appcheck.interop.InternalAppCheckTokenProvider;
@@ -24,10 +26,13 @@ import com.google.firebase.auth.internal.InternalAuthProvider;
 import com.google.firebase.components.Component;
 import com.google.firebase.components.ComponentRegistrar;
 import com.google.firebase.components.Dependency;
+import com.google.firebase.firestore.remote.FirebaseClientDummyMetaDataProvider;
 import com.google.firebase.firestore.remote.FirebaseClientGrpcMetadataProvider;
+import com.google.firebase.heartbeatinfo.DummyHeartBeatInfo;
 import com.google.firebase.heartbeatinfo.HeartBeatInfo;
 import com.google.firebase.platforminfo.LibraryVersionComponent;
 import com.google.firebase.platforminfo.UserAgentPublisher;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -51,6 +56,7 @@ public class FirestoreRegistrar implements ComponentRegistrar {
             .add(Dependency.deferred(InternalAuthProvider.class))
             .add(Dependency.deferred(InternalAppCheckTokenProvider.class))
             .add(Dependency.optional(FirebaseOptions.class))
+            .add(Dependency.optionalProvider(DummyHeartBeatInfo.class))
             .factory(
                 c ->
                     new FirestoreMultiDbComponent(
@@ -58,6 +64,11 @@ public class FirestoreRegistrar implements ComponentRegistrar {
                         c.get(FirebaseApp.class),
                         c.getDeferred(InternalAuthProvider.class),
                         c.getDeferred(InternalAppCheckTokenProvider.class),
+                        c.getProvider(DummyHeartBeatInfo.class),
+                        new FirebaseClientDummyMetaDataProvider(
+                                c.getProvider(HeartBeatInfo.class),
+                                c.getProvider(DummyHeartBeatInfo.class)
+                        ),
                         new FirebaseClientGrpcMetadataProvider(
                             c.getProvider(UserAgentPublisher.class),
                             c.getProvider(HeartBeatInfo.class),

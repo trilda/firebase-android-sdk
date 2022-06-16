@@ -40,11 +40,11 @@ fun Firebase.initialize(context: Context): FirebaseApp? = FirebaseApp.initialize
 
 /** Initializes and returns a FirebaseApp. */
 fun Firebase.initialize(context: Context, options: FirebaseOptions): FirebaseApp =
-        FirebaseApp.initializeApp(context, options)
+    FirebaseApp.initializeApp(context, options)
 
 /** Initializes and returns a FirebaseApp. */
 fun Firebase.initialize(context: Context, options: FirebaseOptions, name: String): FirebaseApp =
-        FirebaseApp.initializeApp(context, options, name)
+    FirebaseApp.initializeApp(context, options, name)
 
 /** Returns options of default FirebaseApp */
 val Firebase.options: FirebaseOptions
@@ -57,6 +57,8 @@ internal const val LIBRARY_NAME: String = "fire-core-ktx"
 class FirebaseCommonKtxRegistrar : ComponentRegistrar {
     override fun getComponents(): List<Component<*>> {
         return listOf(
-                LibraryVersionComponent.create(LIBRARY_NAME, BuildConfig.VERSION_NAME))
+            LibraryVersionComponent.create(LIBRARY_NAME, BuildConfig.VERSION_NAME),
+            DummyHearBeatInfoKtxImp().component()
+        )
     }
 }

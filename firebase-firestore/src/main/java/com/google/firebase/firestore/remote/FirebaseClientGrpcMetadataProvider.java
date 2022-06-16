@@ -29,9 +29,9 @@ import io.grpc.Metadata;
  */
 public class FirebaseClientGrpcMetadataProvider implements GrpcMetadataProvider {
 
-  private final Provider<HeartBeatInfo> heartBeatInfoProvider;
-  private final Provider<UserAgentPublisher> userAgentPublisherProvider;
-  private final FirebaseOptions firebaseOptions;
+  public final Provider<HeartBeatInfo> heartBeatInfoProvider;
+  public final Provider<UserAgentPublisher> userAgentPublisherProvider;
+  public final FirebaseOptions firebaseOptions;
 
   private static final String HEART_BEAT_TAG = "fire-fst";
 
@@ -55,18 +55,19 @@ public class FirebaseClientGrpcMetadataProvider implements GrpcMetadataProvider 
 
   @Override
   public void updateMetadata(@NonNull Metadata metadata) {
-    if (heartBeatInfoProvider.get() == null || userAgentPublisherProvider.get() == null) {
-      return;
-    }
-
-    int heartBeatCode = heartBeatInfoProvider.get().getHeartBeatCode(HEART_BEAT_TAG).getCode();
-    // Non-zero values indicate some kind of heartbeat should be sent.
-    if (heartBeatCode != 0) {
-      metadata.put(HEART_BEAT_HEADER, Integer.toString(heartBeatCode));
-    }
-
-    metadata.put(USER_AGENT_HEADER, userAgentPublisherProvider.get().getUserAgent());
-    maybeAddGmpAppId(metadata);
+    return;
+//    if (heartBeatInfoProvider.get() == null || userAgentPublisherProvider.get() == null) {
+//      return;
+//    }
+//
+//    int heartBeatCode = heartBeatInfoProvider.get().getHeartBeatCode(HEART_BEAT_TAG).getCode();
+//    // Non-zero values indicate some kind of heartbeat should be sent.
+//    if (heartBeatCode != 0) {
+//      metadata.put(HEART_BEAT_HEADER, Integer.toString(heartBeatCode));
+//    }
+//
+//    metadata.put(USER_AGENT_HEADER, userAgentPublisherProvider.get().getUserAgent());
+//    maybeAddGmpAppId(metadata);
   }
 
   private void maybeAddGmpAppId(@NonNull Metadata metadata) {

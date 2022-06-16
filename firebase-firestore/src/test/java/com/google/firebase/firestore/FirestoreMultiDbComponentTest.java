@@ -76,7 +76,7 @@ public class FirestoreMultiDbComponentTest {
     Deferred<InternalAppCheckTokenProvider> deferredAppCheckTokenProvider =
         new ImmediateDeferred<>(mockInternalAppCheckProvider);
     GrpcMetadataProvider metadataProvider = mock(GrpcMetadataProvider.class);
-    return new FirestoreMultiDbComponent(
+    return new FirestoreMultiDbComponent(xxx
         context,
         firebaseApp,
         deferredAuthProvider,
