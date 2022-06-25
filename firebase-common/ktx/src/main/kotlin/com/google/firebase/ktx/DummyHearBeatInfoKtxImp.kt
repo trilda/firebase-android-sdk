@@ -27,10 +27,10 @@ class DummyHearBeatInfoKtxImp : DummyHeartBeatInfo {
             DummyHearBeatInfoKtxImp::class.java,
             DummyHeartBeatInfo::class.java
         )
-            .add(Dependency.required(Context::class.java))
-            .add(Dependency.required(FirebaseApp::class.java))
-            .add(Dependency.setOf(HeartBeatConsumer::class.java))
-            .add(Dependency.requiredProvider(UserAgentPublisher::class.java))
+//            .add(Dependency.required(Context::class.java))
+//            .add(Dependency.required(FirebaseApp::class.java))
+//            .add(Dependency.setOf(HeartBeatConsumer::class.java))
+//            .add(Dependency.requiredProvider(UserAgentPublisher::class.java))
             .factory(ComponentFactory { c: ComponentContainer? -> DummyHearBeatInfoKtxImp() })
             .build()
     }

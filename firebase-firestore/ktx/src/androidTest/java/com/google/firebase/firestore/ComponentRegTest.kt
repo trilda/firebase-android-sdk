@@ -36,12 +36,12 @@ class ComponentRegTest {
         val hb =GrpcMetadataProvider.heartBeatInfoProvider.get() // I can really get a HearBeatController Here!!!
         Log.d(TAG, hb.toString())
 
-        val DummyMetaDataProvider = reg.firebaseClientDummyMetaDataProvider
-        val dummyHeartBeat = DummyMetaDataProvider.heartBeatInfoProvider.get()
-        Log.d(TAG, dummyHeartBeat.toString())
-        Log.d(TAG, "=".repeat(20))
-        val dummyDummyHeartBeat = DummyMetaDataProvider.dummyheartBeatInfoProvider.get()
-        Log.d(TAG, dummyDummyHeartBeat.toString()) // this is null??? Why?
+//        val DummyMetaDataProvider = reg.firebaseClientDummyMetaDataProvider
+//        val dummyHeartBeat = DummyMetaDataProvider.heartBeatInfoProvider.get()
+//        Log.d(TAG, dummyHeartBeat.toString())
+//        Log.d(TAG, "=".repeat(20))
+//        val dummyDummyHeartBeat = DummyMetaDataProvider.dummyheartBeatInfoProvider.get()
+//        Log.d(TAG, dummyDummyHeartBeat.toString()) // this is null??? Why?
     }
 
     @Test

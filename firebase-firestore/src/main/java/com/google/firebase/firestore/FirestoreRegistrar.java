@@ -65,10 +65,10 @@ public class FirestoreRegistrar implements ComponentRegistrar {
                         c.getDeferred(InternalAuthProvider.class),
                         c.getDeferred(InternalAppCheckTokenProvider.class),
                         c.getProvider(DummyHeartBeatInfo.class),
-                        new FirebaseClientDummyMetaDataProvider(
-                                c.getProvider(HeartBeatInfo.class),
-                                c.getProvider(DummyHeartBeatInfo.class)
-                        ),
+//                        new FirebaseClientDummyMetaDataProvider(
+//                                c.getProvider(HeartBeatInfo.class),
+//                                c.getProvider(DummyHeartBeatInfo.class)
+//                        ),
                         new FirebaseClientGrpcMetadataProvider(
                             c.getProvider(UserAgentPublisher.class),
                             c.getProvider(HeartBeatInfo.class),

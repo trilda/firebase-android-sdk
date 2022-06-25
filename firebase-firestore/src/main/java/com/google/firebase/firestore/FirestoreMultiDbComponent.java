@@ -50,7 +50,7 @@ class FirestoreMultiDbComponent
   private final Deferred<InternalAppCheckTokenProvider> appCheckProvider;
   public final Provider<DummyHeartBeatInfo> dummyHeartBeatInfoProvider;
   public final GrpcMetadataProvider metadataProvider;
-  public final FirebaseClientDummyMetaDataProvider firebaseClientDummyMetaDataProvider;
+//  public final FirebaseClientDummyMetaDataProvider firebaseClientDummyMetaDataProvider;
 
 
   FirestoreMultiDbComponent(
@@ -59,7 +59,7 @@ class FirestoreMultiDbComponent
       @NonNull Deferred<InternalAuthProvider> authProvider,
       @NonNull Deferred<InternalAppCheckTokenProvider> appCheckProvider,
       @NonNull Provider<DummyHeartBeatInfo> dummyHeartBeatInfoProvider,
-      @Nullable FirebaseClientDummyMetaDataProvider firebaseClientDummyMetaDataProvider,
+//      @Nullable FirebaseClientDummyMetaDataProvider firebaseClientDummyMetaDataProvider,
       @Nullable GrpcMetadataProvider metadataProvider) {
     this.context = context;
     this.app = app;
@@ -67,7 +67,7 @@ class FirestoreMultiDbComponent
     this.appCheckProvider = appCheckProvider;
     this.dummyHeartBeatInfoProvider = dummyHeartBeatInfoProvider;
     this.metadataProvider = metadataProvider;
-    this.firebaseClientDummyMetaDataProvider = firebaseClientDummyMetaDataProvider;
+//    this.firebaseClientDummyMetaDataProvider = firebaseClientDummyMetaDataProvider;
     this.app.addLifecycleEventListener(this);
   }
 
