@@ -104,24 +104,38 @@ public class PerfTestActivity extends Activity {
   @Override
   @AddTrace(name = "onCreate", enabled = true)
   protected void onCreate(Bundle savedInstanceState) {
+    View x = findViewById(android.R.id.content);
     super.onCreate(savedInstanceState);
-    initViews();
+//    initViews();
     readUrlsFromFile();
     FirebaseRemoteConfigSettings configSettings =
         new FirebaseRemoteConfigSettings.Builder().setMinimumFetchIntervalInSeconds(0L).build();
     firebaseRemoteConfigDefaultInstance.setConfigSettingsAsync(configSettings);
+    Log.d("zhanl", "onCreate");
+//    startActivity(new Intent(this, FragmentActivity.class));
   }
 
   @Override
   @AddTrace(name = "onStart", enabled = false)
   protected void onStart() {
     super.onStart();
+    Log.d("zhanl", "onStart");
+  }
+
+  @Override
+  public void onAttachedToWindow() {
+    super.onAttachedToWindow();
+    Log.d("zhanl", "attachedToWindow");
   }
 
   @Override
   @AddTrace(name = "onResume")
   protected void onResume() {
+    View x = findViewById(android.R.id.content);
     super.onResume();
+    Log.d("zhanl", "onResume");
+    startActivity(new Intent(this, FragmentActivity.class));
+    finish();
   }
 
   @AddTrace(name = "initViews", enabled = true)
