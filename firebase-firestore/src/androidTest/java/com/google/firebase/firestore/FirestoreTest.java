@@ -38,6 +38,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.gms.tasks.Task;
@@ -1169,13 +1170,11 @@ public class FirestoreTest {
   }
 
   @Test
-  public void testNamedDbHaveDifferentPersistence()
-      throws ExecutionException, InterruptedException, TimeoutException {
+  public void testNamedDbHaveDifferentPersistence() {
     // TODO: Have backend with named databases created beforehand.
     // Emulator doesn't care if database was created beforehand.
-    if (!isRunningAgainstEmulator()) {
-      return;
-    }
+    assumeTrue(isRunningAgainstEmulator());
+
     // FirebaseFirestore db1 = FirebaseFirestore.getInstance();
     String projectId = provider().projectId();
     FirebaseFirestore db1 =
