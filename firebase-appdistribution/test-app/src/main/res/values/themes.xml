@@ -1,16 +1,49 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Theme.AppDistributionTestAppSample" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+<!--        &lt;!&ndash; Primary brand color. &ndash;&gt;-->
+<!--        <item name="colorPrimary">@color/purple_500</item> &lt;!&ndash; buttons &ndash;&gt;-->
+<!--        <item name="colorPrimaryVariant">@color/purple_700</item>-->
+<!--        <item name="colorOnPrimary">@color/white</item>-->
+<!--        &lt;!&ndash; Secondary brand color. &ndash;&gt;-->
+<!--        <item name="colorSecondary">@color/teal_200</item>-->
+<!--        <item name="colorSecondaryVariant">@color/teal_700</item>-->
+<!--        <item name="colorOnSecondary">@color/black</item>-->
+<!--        &lt;!&ndash; Status bar color. &ndash;&gt;-->
+<!--        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>-->
         <!-- Customize your theme here. -->
+        <!-- Dialog colors? -->
+<!--        <item name="android:colorAccent">#f3f3f3</item>-->
+<!--        <item name="android:textColor">#0000FF</item> &lt;!&ndash; title &ndash;&gt;-->
+<!--        <item name="android:subtitleTextColor">#FF0000</item>-->
+<!--        <item name="android:colorForegroundInverse">#FF0000</item>-->
+<!--        <item name="android:textColorPrimaryInverse">#00FF00</item>-->
+<!--        <item name="android:textColorSecondary">#00FF00</item>-->
+<!--        <item name="colorAccent">#FF0000</item>-->
+<!--        <item name="android:background">#000000</item>-->
+        <!-- Tell them to use Alert Dialog style? -->
+<!--        <item name="alertDialogTheme">@style/MyAlertDialogTheme</item>-->
+
+
+<!--        <item name="android:alertDialogTheme">@style/MyAlertDialogTheme</item>-->
+
+        <!-- this alone breaks it, when using android.app.AlertDialog -->
+<!--        <item name="android:alertDialogTheme">@style/Theme.MaterialComponents.DayNight.Dialog.Alert</item>-->
+
+        <!-- switching in the AppCompat version also breaks it -->
+<!--        <item name="android:alertDialogTheme">@style/Theme.AppCompat.DayNight.Dialog.Alert</item>-->
+
+        <!-- this alone is OK, when using android.app.AlertDialog -->
+<!--        <item name="alertDialogTheme">@style/Theme.MaterialComponents.DayNight.Dialog.Alert</item>-->
+
+        <!-- I think this breaks it, when using android.app.AlertDialog -->
+<!--        <item name="dialogTheme">@style/Theme.AppCompat.DayNight.Dialog</item>-->
+
+        <!-- TODO: get this theme definitely being applied, and then flip back and forth between android: and not -->
+<!--         <item name="android:alertDialogTheme">@style/MyAlertDialogTheme</item>-->
     </style>
+<!--    <style name="MyAlertDialogTheme" parent="Theme.MaterialComponents.Light.Dialog.Alert">-->
+<!--        <item name="android:textColor">#00ff00</item>-->
+<!--    </style>-->
+<!--    <style name="MyDialogTheme" parent="Theme.MaterialComponents.DayNight.Dialog"></style>-->
 </resources>

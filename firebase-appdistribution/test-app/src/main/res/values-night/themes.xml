@@ -1,16 +1,41 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.AppDistributionTestApp" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_200</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/black</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+    <style name="Theme.AppDistributionTestAppSample" parent="Theme.MaterialComponents">
+        <item name="android:alertDialogTheme">@style/MyNightAlertDialogTheme</item>
+    </style>
+    <style name="MyNightAlertDialogTheme" parent="Theme.MaterialComponents.Dialog.Alert">
+        <!-- Dialog title and text color -->
+        <item name="android:textColorPrimary">#c4c4c4</item>
+
+        <!-- Dialog background color -->
+        <item name="android:background">#424242</item>
     </style>
 </resources>
+
+    <!--        &lt;!&ndash; Primary brand color. &ndash;&gt;-->
+    <!--        <item name="colorPrimary">@color/purple_200</item>-->
+    <!--        <item name="colorPrimaryVariant">@color/purple_700</item>-->
+    <!--        <item name="colorOnPrimary">@color/black</item>-->
+    <!--        &lt;!&ndash; Secondary brand color. &ndash;&gt;-->
+    <!--        <item name="colorSecondary">@color/teal_200</item>-->
+    <!--        <item name="colorSecondaryVariant">@color/teal_200</item>-->
+    <!--        <item name="colorOnSecondary">@color/black</item>-->
+    <!--        &lt;!&ndash; Status bar color. &ndash;&gt;-->
+    <!--        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>-->
+    <!--        &lt;!&ndash; Customize your theme here. &ndash;&gt;-->
+
+
+    <!-- background you can change to some other color than black-->
+    <!--        <item name="android:background">#222222</item>-->
+
+    <!--        <item name="android:textColor">#ff0000</item>-->
+    <!--        &lt;!&ndash; hack to fix it &ndash;&gt;-->
+    <!--        <item name="android:color">#ffffff</item>-->
+    <!--        <item name="android:colorForeground">#ffffff</item>-->
+    <!--        <item name="android:colorAccent">#ffffff</item>-->
+    <!--        <item name="android:colorButtonNormal">#ffffff</item>-->
+    <!--        <item name="android:colorPrimary">#ffffff</item>-->
+    <!--        <item name="colorPrimary">#ffffff</item>-->
+    <!--        <item name="android:colorBackground">#aaaaaa</item>-->
+    <!--        <item name="android:popupBackground">#aaaaaa</item>-->
+    <!--        <item name="android:windowBackground">#aaaaaa</item>-->

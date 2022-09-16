@@ -23,6 +23,7 @@ import static com.google.firebase.appdistribution.impl.TaskUtils.safeSetTaskResu
 
 import android.app.Activity;
 import android.app.AlertDialog;
+//import androidx.appcompat.app.AlertDialog;
 import android.content.Context;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -99,6 +100,7 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
     lifecycleNotifier.addOnActivityResumedListener(this::onActivityResumed);
   }
 
+  // TODO: support a themeId for the dialog theme? https://developer.android.com/reference/android/app/AlertDialog.Builder#Builder(android.content.Context,%20int)
   @Override
   @NonNull
   public UpdateTask updateIfNewReleaseAvailable() {
