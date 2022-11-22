@@ -40,6 +40,7 @@ import com.google.firebase.appdistribution.FirebaseAppDistributionException.Stat
 import com.google.firebase.appdistribution.UpdateProgress;
 import com.google.firebase.appdistribution.UpdateStatus;
 import com.google.firebase.appdistribution.UpdateTask;
+import java.util.concurrent.Executor;
 
 /**
  * This class is the "real" implementation of the Firebase App Distribution API which should only be
@@ -57,10 +58,11 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
   private final AabUpdater aabUpdater;
   private final SignInStorage signInStorage;
 
-  private final Object cachedNewReleaseLock = new Object();
-
-  @GuardedBy("cachedNewReleaseLock")
-  private AppDistributionReleaseInternal cachedNewRelease;
+//  private final Object cachedNewReleaseLock = new Object();
+//
+//  @GuardedBy("cachedNewReleaseLock")
+//  private AppDistributionReleaseInternal cachedNewRelease;
+  private final SequentialReference<AppDistributionReleaseInternal> cachedNewRelease;
 
   private TaskCache<UpdateTask> updateIfNewReleaseAvailableTaskCache = new TaskCache<>();
   private TaskCache<Task<AppDistributionRelease>> checkForNewReleaseTaskCache = new TaskCache<>();
@@ -82,7 +84,8 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
       @NonNull ApkUpdater apkUpdater,
       @NonNull AabUpdater aabUpdater,
       @NonNull SignInStorage signInStorage,
-      @NonNull FirebaseAppDistributionLifecycleNotifier lifecycleNotifier) {
+      @NonNull FirebaseAppDistributionLifecycleNotifier lifecycleNotifier,
+      @NonNull Executor lightweightExecutor) {
     this.firebaseApp = firebaseApp;
     this.testerSignInManager = testerSignInManager;
     this.newReleaseFetcher = newReleaseFetcher;
@@ -90,6 +93,7 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
     this.aabUpdater = aabUpdater;
     this.signInStorage = signInStorage;
     this.lifecycleNotifier = lifecycleNotifier;
+    this.cachedNewRelease = new SequentialReference<>(lightweightExecutor);
     lifecycleNotifier.addOnActivityDestroyedListener(this::onActivityDestroyed);
     lifecycleNotifier.addOnActivityPausedListener(this::onActivityPaused);
     lifecycleNotifier.addOnActivityResumedListener(this::onActivityResumed);
@@ -260,7 +264,7 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
    * basic configuration and false for advanced configuration.
    */
   private UpdateTask updateApp(boolean showDownloadInNotificationManager) {
-    synchronized (cachedNewReleaseLock) {
+    return cachedNewRelease.applyUpdateTask(release -> {
       if (!isTesterSignedIn()) {
         UpdateTaskImpl updateTask = new UpdateTaskImpl();
         updateTask.setException(
@@ -268,13 +272,13 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
                 "Tester is not signed in", AUTHENTICATION_FAILURE));
         return updateTask;
       }
-      if (cachedNewRelease == null) {
+      if (release == null) {
         LogWrapper.getInstance().v("New release not found.");
         return getErrorUpdateTask(
             new FirebaseAppDistributionException(
                 ErrorMessages.RELEASE_NOT_FOUND_ERROR, UPDATE_NOT_AVAILABLE));
       }
-      if (cachedNewRelease.getDownloadUrl() == null) {
+      if (release.getDownloadUrl() == null) {
         LogWrapper.getInstance().v("Download failed to execute.");
         return getErrorUpdateTask(
             new FirebaseAppDistributionException(
@@ -282,12 +286,12 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
                 FirebaseAppDistributionException.Status.DOWNLOAD_FAILURE));
       }
 
-      if (cachedNewRelease.getBinaryType() == BinaryType.AAB) {
-        return aabUpdater.updateAab(cachedNewRelease);
+      if (release.getBinaryType() == BinaryType.AAB) {
+        return aabUpdater.updateAab(release);
       } else {
-        return apkUpdater.updateApk(cachedNewRelease, showDownloadInNotificationManager);
+        return apkUpdater.updateApk(release, showDownloadInNotificationManager);
       }
-    }
+    });
   }
 
   @VisibleForTesting
@@ -308,10 +312,8 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
             new FirebaseAppDistributionException(
                 ErrorMessages.HOST_ACTIVITY_INTERRUPTED, HOST_ACTIVITY_INTERRUPTED));
       } else {
-        synchronized (cachedNewReleaseLock) {
-          showUpdateConfirmationDialog(
-              activity, ReleaseUtils.convertToAppDistributionRelease(cachedNewRelease));
-        }
+        showUpdateConfirmationDialog(
+            activity, ReleaseUtils.convertToAppDistributionRelease(cachedNewRelease.get()));
       }
     }
   }
@@ -338,16 +340,12 @@ class FirebaseAppDistributionImpl implements FirebaseAppDistribution {
 
   @VisibleForTesting
   void setCachedNewRelease(@Nullable AppDistributionReleaseInternal newRelease) {
-    synchronized (cachedNewReleaseLock) {
-      cachedNewRelease = newRelease;
-    }
+    cachedNewRelease.set(newRelease);
   }
 
   @VisibleForTesting
-  AppDistributionReleaseInternal getCachedNewRelease() {
-    synchronized (cachedNewReleaseLock) {
-      return cachedNewRelease;
-    }
+  SequentialReference<AppDistributionReleaseInternal> getCachedNewRelease() {
+    return cachedNewRelease;
   }
 
   private Task<Void> showUpdateConfirmationDialog(

@@ -154,7 +154,8 @@ public class FirebaseAppDistributionServiceImplTest {
                 mockApkUpdater,
                 mockAabUpdater,
                 mockSignInStorage,
-                mockLifecycleNotifier));
+                mockLifecycleNotifier,
+                Executors.newSingleThreadExecutor()));
 
     when(mockTesterSignInManager.signInTester()).thenReturn(Tasks.forResult(null));
     when(mockSignInStorage.getSignInStatus()).thenReturn(true);
@@ -219,7 +220,7 @@ public class FirebaseAppDistributionServiceImplTest {
     assertNotNull(task.getResult());
     assertEquals(TEST_RELEASE_NEWER_AAB, task.getResult());
     assertEquals(
-        TEST_RELEASE_NEWER_AAB_INTERNAL.build(), firebaseAppDistribution.getCachedNewRelease());
+        TEST_RELEASE_NEWER_AAB_INTERNAL.build(), firebaseAppDistribution.getCachedNewRelease().get());
   }
 
   @Test
