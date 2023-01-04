@@ -53,6 +53,7 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
   }
 
   private static FirebaseAppDistributionLifecycleNotifier instance;
+  // TODO: replace with a sequential executor
   private final Object lock = new Object();
 
   @GuardedBy("lock")
@@ -84,6 +85,7 @@ class FirebaseAppDistributionLifecycleNotifier implements Application.ActivityLi
   @VisibleForTesting
   FirebaseAppDistributionLifecycleNotifier() {}
 
+  // TODO: Rather than a getInstance, pass this into constructors from the Registrar
   static synchronized FirebaseAppDistributionLifecycleNotifier getInstance() {
     if (instance == null) {
       instance = new FirebaseAppDistributionLifecycleNotifier();

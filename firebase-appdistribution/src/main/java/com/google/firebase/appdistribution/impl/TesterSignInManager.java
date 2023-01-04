@@ -58,6 +58,7 @@ class TesterSignInManager {
   // TODO: remove synchronized block usage in this class so this does not have to be blocking
   @Blocking private final Executor blockingExecutor;
 
+  // TODO: this should be easy to remove with a TaskCompletionSourceCache
   private final Object signInTaskLock = new Object();
 
   @GuardedBy("signInTaskLock")

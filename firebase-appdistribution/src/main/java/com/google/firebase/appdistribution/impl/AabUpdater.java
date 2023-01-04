@@ -40,14 +40,17 @@ class AabUpdater {
   private final HttpsUrlConnectionFactory httpsUrlConnectionFactory;
   private final Executor blockingExecutor;
 
+  // TODO: can probably be replaced by a UpdateTaskCache
   private final Object updateAabLock = new Object();
 
   @GuardedBy("updateAabLock")
   private UpdateTaskImpl cachedUpdateTask;
 
+  // This probably doesn't need to be guarded
   @GuardedBy("updateAabLock")
   private AppDistributionReleaseInternal aabReleaseInProgress;
 
+  // This probably doesn't need to be guarded
   @GuardedBy("updateAabLock")
   private boolean hasBeenSentToPlayForCurrentTask = false;
 
