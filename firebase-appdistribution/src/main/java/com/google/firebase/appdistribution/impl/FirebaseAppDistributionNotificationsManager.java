@@ -28,10 +28,13 @@ import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import com.google.auto.value.AutoValue;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseApp.BackgroundStateChangeListener;
 import com.google.firebase.appdistribution.InterruptionLevel;
 import javax.inject.Inject;
 
-class FirebaseAppDistributionNotificationsManager {
+class FirebaseAppDistributionNotificationsManager implements BackgroundStateChangeListener {
   private static final String TAG = "NotificationsManager";
 
   private static final String PACKAGE_PREFIX = "com.google.firebase.appdistribution";
@@ -55,13 +58,28 @@ class FirebaseAppDistributionNotificationsManager {
     }
   }
 
+  @AutoValue
+  abstract static class FeedbackNotificationData {
+    abstract CharSequence infoText();
+    abstract InterruptionLevel interruptionLevel();
+
+    static FeedbackNotificationData create(CharSequence infoText, InterruptionLevel interruptionLevel) {
+      return new AutoValue_FirebaseAppDistributionNotificationsManager_FeedbackNotificationData(infoText, interruptionLevel);
+    }
+  }
+
+  @Nullable private FeedbackNotificationData currentNotificationData;
+  private boolean hiddenWhileInBackground = false;
+
   private final Context context;
+  private final FirebaseApp firebaseApp;
   private final AppIconSource appIconSource;
   private final NotificationManagerCompat notificationManager;
 
   @Inject
-  FirebaseAppDistributionNotificationsManager(Context context, AppIconSource appIconSource) {
+  FirebaseAppDistributionNotificationsManager(Context context, FirebaseApp firebaseApp, AppIconSource appIconSource) {
     this.context = context;
+    this.firebaseApp = firebaseApp;
     this.appIconSource = appIconSource;
     this.notificationManager = NotificationManagerCompat.from(context);
   }
@@ -121,7 +139,7 @@ class FirebaseAppDistributionNotificationsManager {
         context, /* requestCode = */ 0, intent, extraFlags | commonFlags);
   }
 
-  public void showFeedbackNotification(
+  void showFeedbackNotification(
       @NonNull CharSequence infoText, @NonNull InterruptionLevel interruptionLevel) {
     // Create the NotificationChannel, but only on API 26+ because
     // the NotificationChannel class is new and not in the support library
@@ -139,6 +157,13 @@ class FirebaseAppDistributionNotificationsManager {
       return;
     }
 
+    doShowFeedbackNotification(infoText, interruptionLevel);
+    currentNotificationData = FeedbackNotificationData.create(infoText, interruptionLevel);
+    firebaseApp.addBackgroundStateChangeListener(this);
+  }
+
+  private void doShowFeedbackNotification(
+      @NonNull CharSequence infoText, @NonNull InterruptionLevel interruptionLevel) {
     Intent intent = new Intent(context, TakeScreenshotAndStartFeedbackActivity.class);
     intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
     intent.putExtra(TakeScreenshotAndStartFeedbackActivity.INFO_TEXT_EXTRA_KEY, infoText);
@@ -161,9 +186,30 @@ class FirebaseAppDistributionNotificationsManager {
   }
 
   public void cancelFeedbackNotification() {
+    doCancelFeedbackNotification();
+    currentNotificationData = null;
+    hiddenWhileInBackground = false;
+    firebaseApp.removeBackgroundStateChangeListener(this);
+  }
+
+  private void doCancelFeedbackNotification() {
     LogWrapper.i(TAG, "Cancelling feedback notification");
     NotificationManagerCompat.from(context)
         .cancel(Notification.FEEDBACK.tag, Notification.FEEDBACK.id);
+  }
+
+  @Override
+  public void onBackgroundStateChanged(boolean background) {
+    LogWrapper.d(TAG, "App background state changed to: " + background);
+    if (background && currentNotificationData != null) {
+      LogWrapper.i(TAG, "Hiding feedback notification because app went to background");
+      doCancelFeedbackNotification();
+      hiddenWhileInBackground = true;
+    } else if (hiddenWhileInBackground && currentNotificationData != null) {
+      LogWrapper.i(TAG, "Showing feedback notification because app returned from background");
+      doShowFeedbackNotification(currentNotificationData.infoText(), currentNotificationData.interruptionLevel());
+      hiddenWhileInBackground = false;
+    }
   }
 
   @RequiresApi(Build.VERSION_CODES.O)

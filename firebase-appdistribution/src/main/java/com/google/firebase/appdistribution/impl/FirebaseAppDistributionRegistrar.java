@@ -15,7 +15,9 @@
 package com.google.firebase.appdistribution.impl;
 
 import android.app.Application;
+import android.content.ComponentCallbacks;
 import android.content.Context;
+import android.content.res.Configuration;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import com.google.firebase.FirebaseApp;
@@ -97,6 +99,17 @@ public class FirebaseAppDistributionRegistrar implements ComponentRegistrar {
     if (applicationContext instanceof Application) {
       Application application = (Application) applicationContext;
       application.registerActivityLifecycleCallbacks(appDistroComponent.getLifecycleNotifier());
+      application.registerComponentCallbacks(new ComponentCallbacks() {
+        @Override
+        public void onConfigurationChanged(@NonNull Configuration newConfig) {
+          LogWrapper.i("LKELLOGG", "New config: " + newConfig);
+        }
+
+        @Override
+        public void onLowMemory() {
+          LogWrapper.i("LKELLOGG", "Low memory");
+        }
+      });
     } else {
       LogWrapper.e(
           TAG,
