@@ -14,6 +14,8 @@
 
 package com.google.firebase.appdistribution.impl;
 
+import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.app.PendingIntent;
@@ -32,12 +34,21 @@ import com.google.auto.value.AutoValue;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseApp.BackgroundStateChangeListener;
 import com.google.firebase.appdistribution.InterruptionLevel;
+import com.google.firebase.appdistribution.impl.FirebaseAppDistributionLifecycleNotifier.OnActivityPausedListener;
+import com.google.firebase.appdistribution.impl.FirebaseAppDistributionLifecycleNotifier.OnActivityResumedListener;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
-class FirebaseAppDistributionNotificationsManager implements BackgroundStateChangeListener {
+@Singleton
+class FirebaseAppDistributionNotificationsManager implements BackgroundStateChangeListener, OnActivityPausedListener, OnActivityResumedListener {
   private static final String TAG = "NotificationsManager";
 
   private static final String PACKAGE_PREFIX = "com.google.firebase.appdistribution";
+  static final String TIMEOUT_INTENT = "com.google.firebase.appdistribution.impl.timeout_intent";
+
+  // Request code is 0 for all pending intents because we never want to create more than one of the
+  // same type of intent
+  private static final int REQUEST_CODE = 0;
 
   @VisibleForTesting
   static final String CHANNEL_GROUP_ID = prependPackage("notification_channel_group_id");
@@ -69,19 +80,21 @@ class FirebaseAppDistributionNotificationsManager implements BackgroundStateChan
   }
 
   @Nullable private FeedbackNotificationData currentNotificationData;
-  private boolean hiddenWhileInBackground = false;
+  private boolean isTimeoutSet = false;
 
   private final Context context;
   private final FirebaseApp firebaseApp;
   private final AppIconSource appIconSource;
   private final NotificationManagerCompat notificationManager;
+  private final FirebaseAppDistributionLifecycleNotifier lifecycleNotifier;
 
   @Inject
-  FirebaseAppDistributionNotificationsManager(Context context, FirebaseApp firebaseApp, AppIconSource appIconSource) {
+  FirebaseAppDistributionNotificationsManager(Context context, FirebaseApp firebaseApp, AppIconSource appIconSource, FirebaseAppDistributionLifecycleNotifier lifecycleNotifier) {
     this.context = context;
     this.firebaseApp = firebaseApp;
     this.appIconSource = appIconSource;
     this.notificationManager = NotificationManagerCompat.from(context);
+    this.lifecycleNotifier = lifecycleNotifier;
   }
 
   void showAppUpdateNotification(long totalBytes, long downloadedBytes, int stringResourceId) {
@@ -127,16 +140,16 @@ class FirebaseAppDistributionNotificationsManager implements BackgroundStateChan
       LogWrapper.w(TAG, "No activity found to launch app");
       return null;
     }
-    return getPendingIntent(intent, PendingIntent.FLAG_ONE_SHOT);
+    return getPendingActivityIntent(intent, PendingIntent.FLAG_ONE_SHOT);
   }
 
-  private PendingIntent getPendingIntent(Intent intent, int extraFlags) {
+  private PendingIntent getPendingActivityIntent(Intent intent, int extraFlags) {
     // Specify mutability because it is required starting at SDK level 31, but FLAG_IMMUTABLE is
     // only supported starting at SDK level 23
     int commonFlags =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
     return PendingIntent.getActivity(
-        context, /* requestCode = */ 0, intent, extraFlags | commonFlags);
+        context, REQUEST_CODE, intent, extraFlags | commonFlags);
   }
 
   void showFeedbackNotification(
@@ -159,7 +172,25 @@ class FirebaseAppDistributionNotificationsManager implements BackgroundStateChan
 
     doShowFeedbackNotification(infoText, interruptionLevel);
     currentNotificationData = FeedbackNotificationData.create(infoText, interruptionLevel);
-    firebaseApp.addBackgroundStateChangeListener(this);
+    lifecycleNotifier.addOnActivityPausedListener(this);
+  }
+
+  @Override
+  public void onPaused(Activity activity) {
+    if (currentNotificationData != null && !isTimeoutSet) {
+      LogWrapper.d(TAG, "Starting timeout to hide notification");
+      PendingIntent pendingIntent = PendingIntent.getBroadcast(context, REQUEST_CODE, new Intent(TIMEOUT_INTENT), PendingIntent.FLAG_CANCEL_CURRENT);
+      AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+      am.set(AlarmManager.RTC, System.currentTimeMillis() + 5000, pendingIntent);
+      isTimeoutSet = true;
+    }
+
+    lifecycleNotifier.removeOnActivityPausedListener(this);
+  }
+
+  @Override
+  public void onResumed(Activity activity) {
+
   }
 
   private void doShowFeedbackNotification(
@@ -179,7 +210,7 @@ class FirebaseAppDistributionNotificationsManager implements BackgroundStateChan
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setAutoCancel(false)
-            .setContentIntent(getPendingIntent(intent, /* extraFlags= */ 0));
+            .setContentIntent(getPendingActivityIntent(intent, /* extraFlags= */ 0));
     LogWrapper.i(TAG, "Showing feedback notification");
     notificationManager.notify(
         Notification.FEEDBACK.tag, Notification.FEEDBACK.id, builder.build());

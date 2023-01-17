@@ -77,10 +77,12 @@ interface AppDistroComponent {
     AppDistroComponent build();
   }
 
-  // Activity injectors
+  // Injectors
   void inject(FeedbackActivity activity);
 
   void inject(TakeScreenshotAndStartFeedbackActivity activity);
+
+  void inject(TimeoutBroadcastReceiver timeoutBroadcastReceiver);
 
   @Module
   interface MainModule {

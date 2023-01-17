@@ -65,5 +65,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/firebase_app_distribution_provider_paths" />
         </provider>
+
+        <receiver android:name=".TimeoutBroadcastReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.appdistribution.impl.timeout_intent" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
